@@ -46,11 +46,50 @@ export default function BookReader({ initialChapter = 1, initialParagraph, highl
     setCurrentChapter(initialChapter);
   }, [initialChapter]);
 
+  // Merge paragraphs that have split footnotes
+  // Handle case where a footnote [[N: ... ]] contains \n\n and gets split across paragraphs
+  const mergeSplitFootnotes = (paragraphs: string[]): string[] => {
+    const merged: string[] = [];
+    for (let i = 0; i < paragraphs.length; i++) {
+      const current = paragraphs[i];
+
+      // Check if paragraph ends with an unclosed footnote [[N: but no closing ]]
+      const unclosedFootnoteMatch = current.match(/\[\[(\d+):\s*([^\]]*)$/);
+
+      if (unclosedFootnoteMatch && i + 1 < paragraphs.length) {
+        // This paragraph ends with an incomplete footnote
+        // Look ahead to find the closing ]] in subsequent paragraphs
+        let footnoteNum = unclosedFootnoteMatch[1];
+        let accumulatedText = current;
+        let j = i + 1;
+
+        // Keep accumulating paragraphs until we find the closing ]]
+        while (j < paragraphs.length) {
+          accumulatedText += ' ' + paragraphs[j];
+          // Check if we now have a complete footnote
+          const completeFootnoteRegex = new RegExp(`\\[\\[${footnoteNum}:\\s*[^\\]]*\\]\\]`);
+          if (completeFootnoteRegex.test(accumulatedText)) {
+            // Found the complete footnote
+            i = j; // Skip the merged paragraphs
+            break;
+          }
+          j++;
+        }
+
+        merged.push(accumulatedText);
+      } else {
+        merged.push(current);
+      }
+    }
+    return merged;
+  };
+
   // Parse footnotes from text and return array of parts
   const parseFootnotes = (text: string): Array<{ type: 'text' | 'footnote'; content: string; footnoteText?: string }> => {
     const parts: Array<{ type: 'text' | 'footnote'; content: string; footnoteText?: string }> = [];
     // Match [[number: text]] format - handle multiline footnotes
-    const footnoteRegex = /\[\[(\d+):\s*([^\]]+(?:\][^\]]*\] [^\]]+)*)\]\]/g;
+    // Updated regex to handle newlines and nested brackets better
+    const footnoteRegex = /\[\[(\d+):\s*([\s\S]*?)\]\](?!\])/g;
     let lastIndex = 0;
     let match;
 
@@ -65,7 +104,7 @@ export default function BookReader({ initialChapter = 1, initialParagraph, highl
       // Clean up the footnote text - remove extra formatting
       let footnoteText = match[2].trim();
       // Replace newlines with spaces for cleaner display
-      footnoteText = footnoteText.replace(/\n+/g, ' ');
+      footnoteText = footnoteText.replace(/\s+/g, ' ');
       parts.push({
         type: 'footnote',
         content: `[${footnoteNum}]`,
@@ -329,7 +368,7 @@ export default function BookReader({ initialChapter = 1, initialParagraph, highl
 
             {/* Chapter content */}
             <div className="prose prose-parchment max-w-none">
-              {currentChapterData.paragraphs.map((paragraph, index) => {
+              {mergeSplitFootnotes(currentChapterData.paragraphs).map((paragraph, index) => {
                 const parts = parseFootnotes(paragraph);
                 return (
                   <p
