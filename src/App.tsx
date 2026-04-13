@@ -10,6 +10,8 @@ import SearchPanel from './components/SearchPanel';
 import KnowledgeGraphView from './components/KnowledgeGraphView';
 import QuotesView from './components/QuotesView';
 import BookReader from './components/BookReader';
+import PeopleDirectory from './components/PeopleDirectory';
+import PlacesDirectory from './components/PlacesDirectory';
 
 type View = 'home' | 'panorama' | 'era' | 'event' | 'person' | 'people' | 'timeline' | 'map' | 'topics' | 'teachings' | 'institutions' | 'communities' | 'concepts' | 'documents' | 'allPlaces' | 'search' | 'knowledgeGraph' | 'quotes' | 'book';
 
@@ -414,8 +416,6 @@ function App() {
               <PeopleDirectory
                 key="people"
                 people={timelineData.people}
-                events={timelineData.events}
-                allEntities={timelineData.allEntities}
                 onSelectPerson={(person: any) => { setSelectedPerson(person); setView('person'); }}
               />
             )}
@@ -474,10 +474,10 @@ function App() {
               />
             )}
             {view === 'allPlaces' && (
-              <AllPlacesView
+              <PlacesDirectory
                 key="allPlaces"
                 places={timelineData.allPlaces}
-                allEntities={timelineData.allEntities}
+                onReadInBook={handleReadInBook}
               />
             )}
             {view === 'knowledgeGraph' && (
@@ -716,204 +716,6 @@ function EntryCard({ icon, title, description, onClick, delay, color }: {
   );
 }
 
-// Helper function to get canonical name for people (merges variations)
-function getCanonicalName(name: string): string {
-  if (!name) return '';
-  const trimmed = name.trim();
-
-  // Common titles to strip
-  const titles = ['Rabbi', 'Rebbe', 'The', 'Mr.', 'Dr.', 'Mrs.', 'Miss', 'Ms.'];
-  let canonical = trimmed;
-
-  // Remove leading titles
-  for (const title of titles) {
-    const regex = new RegExp(`^${title}\\s+`, 'i');
-    canonical = canonical.replace(regex, '');
-  }
-
-  // Remove trailing titles
-  for (const title of titles) {
-    const regex = new RegExp(`\\s+${title}$`, 'i');
-    canonical = canonical.replace(regex, '');
-  }
-
-  return canonical.trim() || trimmed;
-}
-
-// Helper to check if a name is complete (not a partial fragment)
-function isCompleteName(name: string): boolean {
-  if (!name || name.length < 3) return false;
-
-  // Filter out obvious fragments and titles
-  const partialPatterns = [
-    /^(Rabbi|Rebbe|The|Mr|Dr|Mrs|Miss|Ms)$/i,  // Just a title
-    /^(Rabbi|Rebbe)\s*$/i,  // Title with no name
-    /^(Rabbi\s+)?[A-Z]$/i,  // Just an initial
-    /^(Rabbi\s+)?[A-Z][a-z]{1,2}$/i,  // Too short
-    /^(Ma|'Ma|Dr|Rabbi\s+Dr)$/i,  // Incomplete fragments
-  ];
-
-  for (const pattern of partialPatterns) {
-    if (pattern.test(name)) return false;
-  }
-
-  return true;
-}
-
-function PeopleDirectory({ people, events: _events, allEntities, onSelectPerson }: any) {
-  const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
-
-  // Merge people by canonical name and collect all references
-  const mergedPeople = useMemo(() => {
-    const peopleMap = new Map<string, any>();
-
-    people.forEach((person: any) => {
-      const name = person.extracted_data?.name || (person as any).name || '';
-      if (!name || !isCompleteName(name)) return;
-
-      const canonical = getCanonicalName(name);
-
-      if (peopleMap.has(canonical)) {
-        // Merge with existing entry
-        const existing = peopleMap.get(canonical);
-        existing.count = (existing.count || 1) + 1;
-        // Collect all book references
-        if (person.book_link || person.chapter) {
-          if (!existing.bookReferences) existing.bookReferences = [];
-          existing.bookReferences.push({
-            chapter: person.chapter,
-            paragraph: person.paragraph,
-            book_link: person.book_link
-          });
-        }
-        // Preserve the most complete data
-        if (person.extracted_data?.title && !existing.extracted_data?.title) {
-          existing.extracted_data = { ...existing.extracted_data, title: person.extracted_data.title };
-        }
-        if (person.extracted_data?.role && !existing.extracted_data?.role) {
-          existing.extracted_data = { ...existing.extracted_data, role: person.extracted_data.role };
-        }
-      } else {
-        // Create new entry
-        peopleMap.set(canonical, {
-          ...person,
-          canonicalName: canonical,
-          count: 1,
-          bookReferences: (person.book_link || person.chapter) ? [{
-            chapter: person.chapter,
-            paragraph: person.paragraph,
-            book_link: person.book_link
-          }] : []
-        });
-      }
-    });
-
-    return Array.from(peopleMap.values()).sort((a, b) =>
-      (a.canonicalName || a.extracted_data?.name || '').localeCompare(b.canonicalName || b.extracted_data?.name || '')
-    );
-  }, [people]);
-
-  // Count mentions across all entities for each person
-  const peopleWithMentions = useMemo(() => {
-    if (!allEntities) return mergedPeople;
-
-    return mergedPeople.map((person: any) => {
-      const name = person.extracted_data?.name || person.canonicalName || '';
-      const nameLower = name.toLowerCase();
-
-      // Count how many entities mention this person
-      const mentionCount = allEntities.filter((e: any) => {
-        const passage = (e.passage || '').toLowerCase();
-        return passage.includes(nameLower) ||
-               passage.includes(getCanonicalName(name).toLowerCase());
-      }).length;
-
-      return { ...person, mentionCount };
-    });
-  }, [mergedPeople, allEntities]);
-
-  // Get unique first letters
-  const firstLetters = Array.from(new Set(
-    peopleWithMentions.map((p: any) => {
-      const name = p.canonicalName || p.extracted_data?.name || '';
-      return name.charAt(0).toUpperCase();
-    }).filter((l: string) => l)
-  )).sort();
-
-  if (selectedLetter) {
-    const letterPeople = peopleWithMentions.filter((p: any) => {
-      const name = p.canonicalName || p.extracted_data?.name || '';
-      return name.charAt(0).toUpperCase() === selectedLetter;
-    });
-    return (
-      <div className="h-full overflow-y-auto px-8 py-8 bg-ink-500">
-        <div className="fixed inset-0 bg-aged-paper opacity-30 pointer-events-none" />
-        <div className="max-w-6xl mx-auto relative z-10">
-          <button onClick={() => setSelectedLetter(null)} className="font-subheading text-gold-300 hover:text-gold-200 mb-6">← Back to All People</button>
-          <h2 className="font-display text-4xl text-gold-200 text-center mb-6">{selectedLetter}</h2>
-          <p className="font-body text-parchment-400 text-center mb-8">{letterPeople.length} names</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {letterPeople.map((person: any, i: number) => (
-              <div key={i} onClick={() => onSelectPerson(person)} className="bg-parchment-100/80 border border-gold-400/30 rounded-lg p-5 cursor-pointer hover:border-gold-400 transition-all">
-                <h3 className="font-display text-lg text-ink-200">{person.extracted_data?.name || person.passage?.substring(0, 50)}</h3>
-                {person.extracted_data?.title && <p className="font-subheading text-sm text-gold-700">{person.extracted_data.title}</p>}
-                {person.extracted_data?.role && <p className="font-body text-sm text-parchment-400">{person.extracted_data.role}</p>}
-                <div className="flex items-center gap-2 mt-2 text-xs font-subheading text-parchment-400">
-                  <span>{person.mentionCount || 0} mentions</span>
-                  {person.count > 1 && <span>· {person.count} entries</span>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="h-full overflow-y-auto px-8 py-8 bg-ink-500">
-      <div className="fixed inset-0 bg-aged-paper opacity-30 pointer-events-none" />
-      <div className="max-w-6xl mx-auto relative z-10">
-        <div className="flex items-center justify-center gap-4 mb-8">
-          <div className="h-px w-16 bg-gradient-to-r from-transparent to-gold-400" />
-          <User className="w-6 h-6 text-gold-400" />
-          <div className="h-px w-16 bg-gradient-to-l from-transparent to-gold-400" />
-        </div>
-        <h2 className="font-display text-5xl text-gold-200 text-center mb-4">People Directory</h2>
-        <p className="font-body text-parchment-400 text-center text-lg mb-12 italic max-w-2xl mx-auto">
-          {peopleWithMentions.length} souls who shaped Chabad history
-        </p>
-
-        {/* Alphabet filter */}
-        <div className="flex flex-wrap justify-center gap-2 mb-12">
-          {firstLetters.map((letter: any) => (
-            <button
-              key={letter}
-              onClick={() => setSelectedLetter(letter)}
-              className="w-10 h-10 font-display text-gold-700 hover:text-gold-400 hover:bg-gold-400/10 border border-gold-400/30 rounded-full transition-all"
-            >
-              {letter}
-            </button>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {peopleWithMentions.slice(0, 150).map((person: any, i: number) => (
-            <div key={i} onClick={() => onSelectPerson(person)} className="bg-parchment-100/80 border border-gold-400/30 rounded-lg p-4 cursor-pointer hover:border-gold-400 transition-all">
-              <h3 className="font-display text-base text-ink-200">{person.extracted_data?.name || person.passage?.substring(0, 60) || 'Unknown'}</h3>
-              {person.extracted_data?.title && <p className="font-subheading text-xs text-gold-700">{person.extracted_data.title}</p>}
-              <div className="flex items-center gap-2 mt-2 text-xs font-subheading text-parchment-400">
-                <span>{person.mentionCount || 0} mentions</span>
-                {person.count > 1 && <span>· {person.count} entries</span>}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function InteractiveTimeline({ events, onSelectEvent }: any) {
   const [expandedEvent, setExpandedEvent] = useState<any>(null);
 
@@ -1104,112 +906,6 @@ function TopicsView({ topics, entities, onReadInBook }: any) {
               </div>
             );
           })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AllPlacesView({ places, allEntities }: any) {
-  const [selectedPlace, setSelectedPlace] = useState<any>(null);
-
-  // Count mentions for each place across all entities
-  const placesWithMentions = useMemo(() => {
-    if (!allEntities) return places;
-
-    return places.map((place: any) => {
-      const name = place.name || place.extracted_data?.name || place.extracted_data?.location || '';
-      const nameLower = name.toLowerCase();
-
-      // Count how many entities mention this place
-      const mentionCount = allEntities.filter((e: any) => {
-        const passage = (e.passage || '').toLowerCase();
-        const entityName = ((e as any).name || '').toLowerCase();
-        return passage.includes(nameLower) || entityName.includes(nameLower);
-      }).length;
-
-      return { ...place, mentionCount };
-    });
-  }, [places, allEntities]);
-
-  if (selectedPlace) {
-    const placeName = selectedPlace.name || selectedPlace.extracted_data?.name || selectedPlace.extracted_data?.location || 'Unknown';
-
-    // Find all references to this place
-    const allReferences = (allEntities || []).filter((e: any) => {
-      const passage = (e.passage || '').toLowerCase();
-      const name = (placeName || '').toLowerCase();
-      return passage.includes(name);
-    });
-
-    return (
-      <div className="h-full overflow-y-auto px-8 py-8 bg-ink-500">
-        <div className="fixed inset-0 bg-aged-paper opacity-30 pointer-events-none" />
-        <div className="max-w-4xl mx-auto relative z-10">
-          <button onClick={() => setSelectedPlace(null)} className="font-subheading text-gold-300 hover:text-gold-200 mb-6">← Back to Places</button>
-          <div className="bg-parchment-100/90 border border-gold-400/40 rounded-lg p-8 shadow-ornate">
-            <div className="flex items-center justify-center gap-3 mb-6">
-              <Globe className="w-7 h-7 text-gold-600" />
-              <h2 className="font-display text-3xl text-ink-200">{placeName}</h2>
-            </div>
-            <p className="font-subheading text-sm text-gold-700 mb-6 text-center">{allReferences.length} references found in the chronicles</p>
-
-            {selectedPlace.lat && selectedPlace.lng && (
-              <div className="text-center mb-6 text-sm font-subheading text-parchment-400">
-                Coordinates: {selectedPlace.lat.toFixed(4)}, {selectedPlace.lng.toFixed(4)}
-              </div>
-            )}
-
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {allReferences.slice(0, 50).map((ref: any, i: number) => (
-                <div key={i} className="bg-ink-500/30 border border-gold-400/20 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs font-subheading text-gold-700 px-2 py-1 bg-gold-400/20 rounded-full">
-                      {ref.node_type}
-                    </span>
-                    {ref.book_link && (
-                      <span className="text-xs text-parchment-400">
-                        {ref.book_link.replace(/-/g, ' ')}
-                      </span>
-                    )}
-                  </div>
-                  <p className="font-body text-sm text-ink-200 leading-relaxed">{ref.passage || ''}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="h-full overflow-y-auto px-8 py-8 bg-ink-500">
-      <div className="fixed inset-0 bg-aged-paper opacity-30 pointer-events-none" />
-      <div className="max-w-5xl mx-auto relative z-10">
-        <div className="flex items-center justify-center gap-4 mb-8">
-          <div className="h-px w-16 bg-gradient-to-r from-transparent to-gold-400" />
-          <Globe className="w-6 h-6 text-gold-400" />
-          <div className="h-px w-16 bg-gradient-to-l from-transparent to-gold-400" />
-        </div>
-        <h2 className="font-display text-5xl text-gold-200 text-center mb-4">Places Directory</h2>
-        <p className="font-body text-parchment-400 text-center text-lg mb-12 italic max-w-2xl mx-auto">
-          {placesWithMentions.length} locations mentioned throughout the chronicles
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {placesWithMentions.slice(0, 100).map((place: any, i: number) => (
-            <div
-              key={i}
-              onClick={() => setSelectedPlace(place)}
-              className="bg-parchment-100/70 border border-gold-400/30 rounded-lg p-4 cursor-pointer hover:border-gold-400 hover:bg-parchment-200 transition-all"
-            >
-              <h3 className="font-display text-base text-ink-200 mb-1">{place.name}</h3>
-              <div className="flex items-center gap-2 text-xs font-subheading text-parchment-400">
-                <span>{place.mentionCount || 0} mentions</span>
-                {place.lat && <span>· 📍</span>}
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </div>

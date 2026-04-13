@@ -6,35 +6,35 @@
   --font-subheading: "Cormorant Garamond", serif;
   --font-body: "EB Garamond", serif;
 
-  /* Parchment Colors */
+  /* Parchment Colors - Improved contrast */
   --color-parchment-50: #faf7f0;
   --color-parchment-100: #f5efe3;
   --color-parchment-200: #ede4d3;
-  --color-parchment-300: #e0d4bc;
-  --color-parchment-400: #d4c3a5;
-  --color-parchment-500: #c9b38e;
-  --color-parchment-600: #b8a075;
-  --color-parchment-700: #9a855e;
-  --color-parchment-800: #7d6a4b;
-  --color-parchment-900: #63553c;
+  --color-parchment-300: #d8c9a8;
+  --color-parchment-400: #c4b085;
+  --color-parchment-500: #a89060;
+  --color-parchment-600: #8a7548;
+  --color-parchment-700: #6d5c3a;
+  --color-parchment-800: #504229;
+  --color-parchment-900: #3a311f;
 
-  /* Gold Colors */
-  --color-gold-100: #f9f1d8;
-  --color-gold-200: #f0e4b8;
-  --color-gold-300: #e6d596;
-  --color-gold-400: #dbc670;
-  --color-gold-500: #c9ad4a;
-  --color-gold-600: #b3983e;
-  --color-gold-700: #947a33;
-  --color-gold-800: #78632b;
-  --color-gold-900: #615225;
+  /* Gold Colors - Improved contrast */
+  --color-gold-100: #faf3d0;
+  --color-gold-200: #f0e2a0;
+  --color-gold-300: #e3cc6f;
+  --color-gold-400: #d4b84c;
+  --color-gold-500: #c2a338;
+  --color-gold-600: #a68628;
+  --color-gold-700: #82681f;
+  --color-gold-800: #614d18;
+  --color-gold-900: #453612;
 
-  /* Ink Colors */
-  --color-ink-100: #2d2620;
-  --color-ink-200: #251f1a;
-  --color-ink-300: #1d1814;
-  --color-ink-400: #151210;
-  --color-ink-500: #0d0c0a;
+  /* Ink Colors - Improved contrast */
+  --color-ink-100: #3d3328;
+  --color-ink-200: #2e251d;
+  --color-ink-300: #1f1813;
+  --color-ink-400: #120f0c;
+  --color-ink-500: #0a0908;
 
   /* Custom Backgrounds */
   --background-parchment: linear-gradient(135deg, #f5efe3 0%, #ede4d3 25%, #e0d4bc 50%, #ede4d3 75%, #f5efe3 100%);
@@ -42,7 +42,7 @@
 
   /* Custom Shadows */
   --shadow-ornate: 0 4px 24px rgba(109, 82, 60, 0.15), 0 0 1px rgba(109, 82, 60, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-  --shadow-gold-glow: 0 0 30px rgba(201, 173, 74, 0.3), 0 0 60px rgba(201, 173, 74, 0.15);
+  --shadow-gold-glow: 0 0 30px rgba(194, 163, 56, 0.35), 0 0 60px rgba(194, 163, 56, 0.2);
   --shadow-card: 0 2px 8px rgba(13, 12, 10, 0.3), 0 8px 24px rgba(13, 12, 10, 0.2);
 }
 

@@ -6,6 +6,8 @@ interface Era {
   id: string;
   name: string;
   years: string;
+  startYear: number;
+  endYear: number;
   description: string;
   color: string;
 }
@@ -19,11 +21,21 @@ interface EraViewProps {
 
 export default function EraView({ era, events, onSelectEvent, onSelectPerson }: EraViewProps) {
   const [showAllEvents, setShowAllEvents] = useState(false);
-  const displayedEvents = showAllEvents ? events : events.slice(0, 18);
+
+  // Filter events by era year range
+  const eraEvents = events.filter((evt: any) => {
+    const year = evt.year || evt.extracted_data?.year_ce;
+    if (year && era.startYear && era.endYear) {
+      return year >= era.startYear && year <= era.endYear;
+    }
+    return false;
+  }).sort((a: any, b: any) => (a.year || 0) - (b.year || 0));
+
+  const displayedEvents = showAllEvents ? eraEvents : eraEvents.slice(0, 18);
 
   const getEraPeople = () => {
     const mentioned = new Set<string>();
-    events.forEach((evt: any) => {
+    eraEvents.forEach((evt: any) => {
       const passage = evt.passage || '';
       const matches = passage.match(/(Rabbi [A-Z][a-z]+|Rebbe|The [A-Z][a-z]+)/g);
       matches?.forEach((m: string) => mentioned.add(m));
@@ -79,7 +91,7 @@ export default function EraView({ era, events, onSelectEvent, onSelectPerson }: 
               <Calendar className="w-6 h-6" />
               <span>Chronicles of the Era</span>
             </h3>
-            <span className="font-subheading text-sm text-parchment-300">({events.length} events)</span>
+            <span className="font-subheading text-sm text-parchment-300">({eraEvents.length} events)</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {displayedEvents.map((event: any, index: number) => (
@@ -129,7 +141,7 @@ export default function EraView({ era, events, onSelectEvent, onSelectPerson }: 
           </div>
 
           {/* Show More/Less Button */}
-          {events.length > 18 && (
+          {eraEvents.length > 18 && (
             <div className="flex justify-center mt-8">
               <motion.button
                 whileHover={{ scale: 1.05 }}
@@ -137,7 +149,7 @@ export default function EraView({ era, events, onSelectEvent, onSelectPerson }: 
                 onClick={() => setShowAllEvents(!showAllEvents)}
                 className="flex items-center gap-2 px-6 py-3 bg-parchment-100/90 border border-gold-400/40 rounded-full text-sm font-subheading text-ink-200 hover:border-gold-400 transition-all shadow-sm"
               >
-                <span>{showAllEvents ? `Show Less (18)` : `Show All (${events.length})`}</span>
+                <span>{showAllEvents ? `Show Less (18)` : `Show All (${eraEvents.length})`}</span>
                 <ChevronDown className={`w-4 h-4 transition-transform ${showAllEvents ? 'rotate-180' : ''}`} />
               </motion.button>
             </div>

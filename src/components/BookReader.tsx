@@ -49,7 +49,8 @@ export default function BookReader({ initialChapter = 1, initialParagraph, highl
   // Parse footnotes from text and return array of parts
   const parseFootnotes = (text: string): Array<{ type: 'text' | 'footnote'; content: string; footnoteText?: string }> => {
     const parts: Array<{ type: 'text' | 'footnote'; content: string; footnoteText?: string }> = [];
-    const footnoteRegex = /\[\[(\d+):\s*([^\]]+)\]\]/g;
+    // Match [[number: text]] format - handle multiline footnotes
+    const footnoteRegex = /\[\[(\d+):\s*([^\]]+(?:\][^\]]*\] [^\]]+)*)\]\]/g;
     let lastIndex = 0;
     let match;
 
@@ -61,7 +62,10 @@ export default function BookReader({ initialChapter = 1, initialParagraph, highl
 
       // Add the footnote reference
       const footnoteNum = match[1];
-      const footnoteText = match[2].trim();
+      // Clean up the footnote text - remove extra formatting
+      let footnoteText = match[2].trim();
+      // Replace newlines with spaces for cleaner display
+      footnoteText = footnoteText.replace(/\n+/g, ' ');
       parts.push({
         type: 'footnote',
         content: `[${footnoteNum}]`,
@@ -71,9 +75,12 @@ export default function BookReader({ initialChapter = 1, initialParagraph, highl
       lastIndex = match.index + match[0].length;
     }
 
-    // Add remaining text
+    // Add remaining text - also handle any remaining [[...]] patterns that weren't matched
     if (lastIndex < text.length) {
-      parts.push({ type: 'text', content: text.slice(lastIndex) });
+      let remainingText = text.slice(lastIndex);
+      // Handle any unmatched [[...]] patterns by converting them to readable text
+      remainingText = remainingText.replace(/\[\[([^\]]+)\]\]/g, '<sup class="text-gold-600 text-xs">[$1]</sup>');
+      parts.push({ type: 'text', content: remainingText });
     }
 
     return parts;

@@ -1,11 +1,11 @@
 import { motion } from 'framer-motion';
-import { Calendar, BookOpen, Crown, ChevronLeft, Library } from 'lucide-react';
+import { Calendar, BookOpen, Crown, ChevronLeft, Library, Quote } from 'lucide-react';
 
 interface PersonProfileProps {
   person: any;
   events: any[];
   onBack?: () => void;
-  onReadInBook?: (text: string) => void;
+  onReadInBook?: (entity: any) => void;
 }
 
 export default function PersonProfile({ person, events, onBack, onReadInBook }: PersonProfileProps) {
@@ -95,8 +95,8 @@ export default function PersonProfile({ person, events, onBack, onReadInBook }: 
           </div>
         </motion.div>
 
-        {/* Events Involving This Person */}
-        {personEvents.length > 0 && (
+        {/* Book References */}
+        {(person.bookReferences || personEvents.length > 0) && (
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -104,31 +104,62 @@ export default function PersonProfile({ person, events, onBack, onReadInBook }: 
           >
             <h2 className="font-display text-2xl font-semibold mb-6 flex items-center justify-center gap-3 text-gold-300">
               <BookOpen className="w-7 h-7" />
-              Chronicles Involving {name}
+              References in the Book
             </h2>
-            <div className="space-y-4">
-              {personEvents.slice(0, 10).map((evt: any, index: number) => (
-                <motion.div
-                  key={index}
-                  initial={{ y: 10, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="bg-parchment-100/70 backdrop-blur-sm border border-gold-400/30 rounded-lg overflow-hidden hover:border-gold-400/50 transition-all"
+            <div className="space-y-3">
+              {/* Direct book references */}
+              {person.bookReferences && person.bookReferences.length > 0 && person.bookReferences.map((ref: any, index: number) => (
+                <motion.button
+                  key={`ref-${index}`}
+                  initial={{ x: -10, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: index * 0.03 }}
+                  onClick={() => onReadInBook?.({ ...person, book_link: ref.book_link, chapter: ref.chapter, paragraph: ref.paragraph })}
+                  className="w-full text-left bg-parchment-100/80 border border-gold-400/40 rounded-lg p-4 hover:border-gold-500 hover:shadow-gold-glow transition-all group"
                 >
-                  <div className="p-5">
-                    {evt.year && (
-                      <div className="inline-block px-3 py-1 rounded-full text-xs font-subheading text-gold-700 border border-gold-400/30 mb-3">
-                        {evt.year}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Quote className="w-4 h-4 text-gold-600" />
+                        <span className="font-subheading text-xs text-gold-700">
+                          Chapter {ref.chapter || '?'}{ref.paragraph !== undefined ? `, Paragraph ${ref.paragraph + 1}` : ''}
+                        </span>
                       </div>
-                    )}
-                    <h3 className="font-display font-semibold mb-2 text-ink-200">
-                      {evt.extracted_data?.event || evt.extracted_data?.description || 'Event'}
-                    </h3>
-                    <p className="font-body text-sm text-ink-100 line-clamp-2 leading-relaxed">
-                      {evt.passage?.substring(0, 200)}...
-                    </p>
+                      <p className="font-body text-sm text-ink-100 line-clamp-2">
+                        {person.passage?.substring(0, 150) || 'Reference in book'}
+                      </p>
+                    </div>
+                    <Library className="w-5 h-5 text-gold-600 group-hover:text-gold-500 transition-colors shrink-0" />
                   </div>
-                </motion.div>
+                </motion.button>
+              ))}
+              {/* Event references */}
+              {personEvents.slice(0, 8).map((evt: any, index: number) => (
+                <motion.button
+                  key={`evt-${index}`}
+                  initial={{ x: -10, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: (person.bookReferences?.length || 0) * 0.03 + index * 0.03 }}
+                  onClick={() => onReadInBook?.(evt)}
+                  className="w-full text-left bg-parchment-100/80 border border-gold-400/40 rounded-lg p-4 hover:border-gold-500 hover:shadow-gold-glow transition-all group"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      {evt.year && (
+                        <div className="inline-block px-2 py-0.5 rounded text-xs font-subheading text-gold-700 border border-gold-400/30 mb-2">
+                          {evt.year}
+                        </div>
+                      )}
+                      <h3 className="font-display font-semibold text-ink-200 mb-1">
+                        {evt.extracted_data?.event || evt.extracted_data?.description || 'Event'}
+                      </h3>
+                      <p className="font-body text-sm text-ink-100 line-clamp-2">
+                        {evt.passage?.substring(0, 150)}...
+                      </p>
+                    </div>
+                    <Library className="w-5 h-5 text-gold-600 group-hover:text-gold-500 transition-colors shrink-0 mt-1" />
+                  </div>
+                </motion.button>
               ))}
             </div>
           </motion.div>
