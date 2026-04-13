@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/undaunted-timeline/',
+  base: '/frierdiker-rebbe-timeline/',
   build: {
     outDir: 'dist',
     emptyOutDir: true,
